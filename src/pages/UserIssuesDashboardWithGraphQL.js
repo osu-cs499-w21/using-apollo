@@ -1,4 +1,5 @@
 import React from 'react';
+import { gql, useQuery } from '@apollo/client';
 
 import UserHeader from '../components/UserHeaderForGraphQL';
 import ReposList from '../components/ReposListForGraphQL';
@@ -9,14 +10,56 @@ import ReposList from '../components/ReposListForGraphQL';
  * We're doing it this way for ease of demonstration only.
  */
 const token = process.env.REACT_APP_NOT_SECRET_GITHUB_TOKEN;
-const login = 'octocat';
+const login = 'robwhess';
+
+const GET_USER_DATA = gql`
+  query GetUserData($login: String!){
+    user(login: $login) {
+      name
+      url
+      avatarUrl(size: 50)
+      repositories(first: 10, orderBy: {
+        field: UPDATED_AT,
+        direction: DESC
+      }) {
+        nodes {
+          name
+          url
+          issues(first: 3, states: OPEN, orderBy: {
+            field: CREATED_AT,
+            direction: DESC
+          }) {
+            nodes {
+              title
+              url
+              createdAt
+            }
+          }
+        }
+      }
+    }
+  }
+`;
 
 export default function UserIssuesDashboard() {
+  const { data, loading, error, refetch } = useQuery(GET_USER_DATA, {
+    variables: { login: login }
+  });
   return (
     <div>
       {token ? (
         <>
-          <p>Let's work on loading some data...</p>
+          {loading && <p>Loading...</p>}
+          {error && <p>Error...</p>}
+          {data && data.user && (
+            <>
+              <div>
+                <button onClick={() => refetch()}>Refresh data</button>
+              </div>
+              <UserHeader login={login} user={data.user} />
+              <ReposList repos={data.user.repositories.nodes} />
+            </>
+          )}
         </>
       ) : (
         <p>
